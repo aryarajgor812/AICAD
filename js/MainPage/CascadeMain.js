@@ -280,6 +280,18 @@ function initialize(projectContent = null) {
                     saveProject();
                     monacoEditor.evaluateCode(true);
                 }
+
+                // Toggle AI Prompt Bar on Ctrl+I
+                if (e.key.toLowerCase() === 'i' && e.altKey) {
+                    e.preventDefault();
+                    const aiPromptBar = document.getElementById('ai-prompt-bar');
+                    if (aiPromptBar.style.display === 'none' || aiPromptBar.style.display === '') {
+                        aiPromptBar.style.display = 'flex';
+                        document.getElementById('ai-prompt-input').focus();
+                    } else {
+                        aiPromptBar.style.display = 'none';
+                    }
+                }
                 return true;
             };
 
@@ -293,6 +305,99 @@ function initialize(projectContent = null) {
                     codeContainer.setTitle('* ' + file.handle.name);
                 }
                 return true;
+            };
+
+            // Handle AI Prompt Bar
+            const aiGenerateButton = document.getElementById('ai-generate-button');
+            const aiPromptInput = document.getElementById('ai-prompt-input');
+            const aiPromptBar = document.getElementById('ai-prompt-bar');
+
+            // WARNING: Do not use this API key in a production environment.
+            // It is recommended to use a secure method to store and access the API key.
+            const GEMINI_API_KEY = 'AIzaSyDQiyvx6SaLHzHYB0Bupz6SpJk4Dxgc-1I';
+
+            async function generateCodeWithAI(prompt) {
+                const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
+
+                const systemPrompt = `
+You are an expert in Open CASCADE Technology and Cascade Studio.
+Your task is to generate JavaScript code for Cascade Studio based on the user's prompt.
+The generated code should be a single block of JavaScript code that can be executed in the Cascade Studio environment.
+Do not include any explanations, comments, or markdown formatting.
+Only output the raw JavaScript code.
+
+Here are the available functions:
+- Translate(), Rotate(), Scale(), Mirror(), Union(), Difference(), Intersection()
+- Box(), Sphere(), Cylinder(), Cone(), Text3D(), Polygon()
+- Offset(), Extrude(), RotatedExtrude(), Revolve(), Pipe(), Loft(),
+- FilletEdges(), ChamferEdges(),
+- Slider(), Checkbox(), TextInput(), Dropdown()
+
+Example of a valid response:
+let holeRadius = Slider("Radius", 30, 20, 40);
+let sphere = Sphere(50);
+let cylinderZ = Cylinder(holeRadius, 200, true);
+let cylinderY = Rotate([0, 1, 0], 90, Cylinder(holeRadius, 200, true));
+let cylinderX = Rotate([1, 0, 0], 90, Cylinder(holeRadius, 200, true));
+Translate([0, 0, 50], Difference(sphere, [cylinderX, cylinderY, cylinderZ]));
+Translate([-25, 0, 40], Text3D("Hi!", 36, 0.15, 'Consolas'));
+`;
+
+                const requestBody = {
+                    "contents": [
+                        {
+                            "parts": [
+                                { "text": systemPrompt },
+                                { "text": "User prompt: " + prompt }
+                            ]
+                        }
+                    ]
+                };
+
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('API request failed with status ' + response.status);
+                    }
+
+                    const data = await response.json();
+                    const generatedCode = data.candidates[0].content.parts[0].text;
+                    return generatedCode.replace(/```javascript/g, '').replace(/```/g, '');
+                } catch (error) {
+                    console.error('Error calling Gemini API:', error);
+                    return "// Error generating code. Please check the console for details.";
+                }
+            }
+
+            aiGenerateButton.onclick = async function() {
+                const prompt = aiPromptInput.value;
+                if (prompt) {
+                    aiGenerateButton.disabled = true;
+                    aiGenerateButton.textContent = 'Generating...';
+                    try {
+                        const generatedCode = await generateCodeWithAI(prompt);
+                        monacoEditor.setValue(generatedCode);
+                    } finally {
+                        aiPromptBar.style.display = 'none';
+                        aiPromptInput.value = '';
+                        aiGenerateButton.disabled = false;
+                        aiGenerateButton.textContent = 'Generate';
+                    }
+                }
+            };
+
+            aiPromptInput.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    aiGenerateButton.click();
+                }
             };
         });
     });
