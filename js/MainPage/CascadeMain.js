@@ -215,6 +215,27 @@ function initialize(projectContent = null) {
                 guiSeparatorAdded = false;
                 userGui = false;
                 messageHandlers["addButton"]({ name: "Evaluate", label: "Function", callback: () => { monacoEditor.evaluateCode(true) } });
+
+                const aiButton = gui.addButton({ title: 'Generate AI Code' });
+                aiButton.on('click', async () => {
+                    const prompt = document.getElementById('ai-prompt-input').value;
+                    if (prompt) {
+                        aiButton.disabled = true;
+                        aiButton.title = 'Generating...';
+                        try {
+                            const generatedCode = await generateCodeWithAI(prompt);
+                            monacoEditor.setValue(generatedCode);
+                        } finally {
+                            document.getElementById('ai-prompt-bar').style.display = 'none';
+                            document.getElementById('ai-prompt-input').value = '';
+                            aiButton.disabled = false;
+                            aiButton.title = 'Generate AI Code';
+                        }
+                    } else {
+                        alert("Please enter a prompt in the AI prompt bar first (Alt+I).");
+                    }
+                });
+
                 messageHandlers["addSlider"]({ name: "MeshRes", default: 0.1, min: 0.01, max: 2, step: 0.01, dp: 2 });
                 messageHandlers["addCheckbox"]({ name: "Cache?", default: true });
                 messageHandlers["addCheckbox"]({ name: "GroundPlane?", default: true });
@@ -281,12 +302,12 @@ function initialize(projectContent = null) {
                     monacoEditor.evaluateCode(true);
                 }
 
-                // Toggle AI Prompt Bar on Ctrl+I
+                // Toggle AI Prompt Bar on Alt+I
                 if (e.key.toLowerCase() === 'i' && e.altKey) {
                     e.preventDefault();
                     const aiPromptBar = document.getElementById('ai-prompt-bar');
                     if (aiPromptBar.style.display === 'none' || aiPromptBar.style.display === '') {
-                        aiPromptBar.style.display = 'flex';
+                        aiPromptBar.style.display = 'block';
                         document.getElementById('ai-prompt-input').focus();
                     } else {
                         aiPromptBar.style.display = 'none';
@@ -306,11 +327,6 @@ function initialize(projectContent = null) {
                 }
                 return true;
             };
-
-            // Handle AI Prompt Bar
-            const aiGenerateButton = document.getElementById('ai-generate-button');
-            const aiPromptInput = document.getElementById('ai-prompt-input');
-            const aiPromptBar = document.getElementById('ai-prompt-bar');
 
             // WARNING: Do not use this API key in a production environment.
             // It is recommended to use a secure method to store and access the API key.
@@ -376,27 +392,18 @@ Translate([-25, 0, 40], Text3D("Hi!", 36, 0.15, 'Consolas'));
                 }
             }
 
-            aiGenerateButton.onclick = async function() {
-                const prompt = aiPromptInput.value;
-                if (prompt) {
-                    aiGenerateButton.disabled = true;
-                    aiGenerateButton.textContent = 'Generating...';
-                    try {
-                        const generatedCode = await generateCodeWithAI(prompt);
-                        monacoEditor.setValue(generatedCode);
-                    } finally {
-                        aiPromptBar.style.display = 'none';
-                        aiPromptInput.value = '';
-                        aiGenerateButton.disabled = false;
-                        aiGenerateButton.textContent = 'Generate';
-                    }
-                }
-            };
-
+            const aiPromptInput = document.getElementById('ai-prompt-input');
             aiPromptInput.onkeydown = function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    aiGenerateButton.click();
+                    // Find the button and click it
+                    const allButtons = document.querySelectorAll('.tp-btn');
+                    for (let i = 0; i < allButtons.length; i++) {
+                        if (allButtons[i].title === 'Generate AI Code') {
+                            allButtons[i].click();
+                            break;
+                        }
+                    }
                 }
             };
         });

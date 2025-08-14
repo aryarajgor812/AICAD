@@ -63,3 +63,25 @@
 .tp-rotv button {
   text-shadow: inherit;
 }
+
+/* AI Prompt Bar */
+#ai-prompt-bar {
+    padding: 10px;
+    background-color: #333;
+    border-radius: 5px;
+    z-index: 1001;
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
+}
+
+#ai-prompt-input {
+    width: 500px;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    background-color: #222;
+    color: #fff;
+}
